@@ -20,8 +20,8 @@ services:
 
   worker:
     build:
-      context: ./worker
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: worker/Dockerfile.dev
     environment:
       DATABASE_URL: postgresql://repoforge:repoforge_dev@postgres:5432/repoforge
       REDIS_URL: redis://redis:6379
@@ -29,11 +29,11 @@ services:
     ports:
       - '8000:8000'
     volumes:
-      - ./worker:/app
+      - .:/app
     depends_on:
       - postgres
       - redis
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn worker.main:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:
   pgdata:

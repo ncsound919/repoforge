@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Node / Frontend
+node_modules/
+dist/
+.vite/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db

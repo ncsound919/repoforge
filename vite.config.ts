@@ -1,0 +1,18 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+// https://vitejs.dev/config/
+export default defineConfig(async () => ({
+  plugins: [react()],
+  // Tauri expects a fixed port; don't open a browser
+  server: {
+    port: 1420,
+    strictPort: true,
+    watch: {
+              // Ignore src-tauri from Vite's file watcher (Rust rebuilds handled by Tauri CLI)
+      ignored: ["**/src-tauri/**"],
+    },
+  },
+  // Use relative paths so the Tauri bundle loads assets correctly
+  base: "./",
+}));
