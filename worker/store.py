@@ -37,6 +37,10 @@ class _Store:
         return self.repos.get(repo_id)
 
     def create_repo(self, name: str, path: str, language: list[str] | None = None) -> dict:
+        # Enforce unique paths to match the Postgres schema constraint.
+        for existing in self.repos.values():
+            if existing["path"] == path:
+                raise ValueError(f"A repository with path '{path}' already exists.")
         repo = {
             "repo_id": str(uuid.uuid4()),
             "name": name,
@@ -59,7 +63,10 @@ class _Store:
         return runs
 
     def get_run(self, run_id: str) -> Optional[dict]:
-        return self.runs.get(run_id)
+        # Return a shallow copy so callers cannot mutate internal store state
+        # (guards audit logging from capturing the wrong `from_state`).
+        run = self.runs.get(run_id)
+        return dict(run) if run is not None else None
 
     def create_run(self, repo_id: str, goal: str, trigger: str = "manual") -> dict:
         run_id = str(uuid.uuid4())
