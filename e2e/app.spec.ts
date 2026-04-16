@@ -3,7 +3,6 @@ import { test, expect } from "@playwright/test";
 // ---------------------------------------------------------------------------
 // API health (direct HTTP — no browser needed)
 // ---------------------------------------------------------------------------
-
 test.describe("Worker API", () => {
   test("GET /health returns ok", async ({ request }) => {
     const resp = await request.get("http://localhost:8000/health");
@@ -57,12 +56,11 @@ test.describe("Worker API", () => {
 // ---------------------------------------------------------------------------
 // Frontend UI
 // ---------------------------------------------------------------------------
-
 test.describe("Dashboard UI", () => {
   test("page loads and shows navigation", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/RepoForge/i);
-    await expect(page.getByText("🔨 RepoForge")).toBeVisible();
+    await expect(page.getByText("\uD83D\uDD28 RepoForge")).toBeVisible();
     await expect(page.getByRole("button", { name: "Runs" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Repos" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Approvals" })).toBeVisible();
@@ -78,7 +76,7 @@ test.describe("Dashboard UI", () => {
     await page.getByRole("button", { name: "Repos" }).click();
     await expect(page.getByRole("heading", { name: "Register Repository" })).toBeVisible();
     await expect(page.getByPlaceholder("my-repo")).toBeVisible();
-    await expect(page.getByPlaceholder(/local path/i)).toBeVisible();
+    await expect(page.getByLabel(/local path/i)).toBeVisible();
   });
 
   test("Approvals tab shows queue", async ({ page }) => {
@@ -92,10 +90,10 @@ test.describe("Dashboard UI", () => {
     await page.getByRole("button", { name: "Repos" }).click();
 
     await page.getByPlaceholder("my-repo").fill("ui-test-repo");
-    await page.getByPlaceholder(/local path/i).fill("/tmp/ui-test-repo");
+    await page.getByLabel(/local path/i).fill("/tmp/ui-test-repo");
     await page.getByRole("button", { name: "Register" }).click();
 
-    await expect(page.getByText("✓ Registered")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("\u2713 Registered")).toBeVisible({ timeout: 5000 });
     await expect(page.getByText("ui-test-repo")).toBeVisible();
   });
 });
