@@ -103,3 +103,8 @@ export const decideApproval = (
     method: "PATCH",
     body: JSON.stringify({ decision, decided_by: decidedBy }),
   });
+
+export const getDiff = (diffRef: string) =>
+  request<{ old_content: string; new_content: string; filename: string }>(
+    `/diffs/${encodeURIComponent(diffRef)}`
+  );

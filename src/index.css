@@ -62,3 +62,8 @@ input, textarea, select {
 input:focus, textarea:focus, select:focus {
   border-color: #38bdf8;
 }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
