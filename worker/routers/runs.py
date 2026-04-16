@@ -1,6 +1,8 @@
 """Runs router — create and manage LangGraph orchestration runs."""
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
@@ -74,8 +76,6 @@ def _advance_run(run_id: str) -> None:
 
     Phase 2 will replace this with the real LangGraph invocation.
     """
-    import time
-
     transitions = [
         ("queued", "planning"),
         ("planning", "sandboxing"),
