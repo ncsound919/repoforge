@@ -81,7 +81,9 @@ export default function RunList() {
     try {
       const data = await listRepos();
       setRepos(data);
-      if (data.length > 0 && !repoId) setRepoId(data[0].repo_id);
+      if (data.length > 0) {
+        setRepoId((currentRepoId) => currentRepoId || data[0].repo_id);
+      }
     } catch {
       // non-fatal — user can still type
     }
