@@ -9,7 +9,7 @@ export default defineConfig(async () => ({
     port: 1420,
     strictPort: true,
     watch: {
-      // Watch for changes in the Tauri source as well
+              // Ignore src-tauri from Vite's file watcher (Rust rebuilds handled by Tauri CLI)
       ignored: ["**/src-tauri/**"],
     },
   },
