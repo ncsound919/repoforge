@@ -103,3 +103,11 @@ export const decideApproval = (
     method: "PATCH",
     body: JSON.stringify({ decision, decided_by: decidedBy }),
   });
+
+export const getDiff = async (
+  diffRef: string
+): Promise<{ old_content: string; new_content: string; filename: string }> => {
+  throw new Error(
+    `Diff retrieval is not available: the client is still configured to use an unimplemented /diffs/{ref} API for diff ref "${diffRef}". Wire getDiff() to the actual backend diff endpoint or add server-side support for diff_ref resolution.`
+  );
+};

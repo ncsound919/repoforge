@@ -53,7 +53,7 @@ export default function App() {
         </nav>
 
         <span style={{ marginLeft: "auto", fontSize: 12, color: "#64748b" }}>
-          v0.4.0
+          v0.5.0
         </span>
       </header>
 

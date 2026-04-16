@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { listApprovals, decideApproval, type Approval } from "../api";
+import ReactDiffViewer from "react-diff-viewer-continued";
+import { listApprovals, getDiff, decideApproval, type Approval } from "../api";
+import { ApprovalSkeleton } from "./Skeleton";
 
 function riskColor(score: number) {
   if (score >= 0.7) return "#ef4444";
@@ -45,9 +47,128 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   );
 }
 
+function ExpiryBadge({ expiresAt }: { expiresAt: string }) {
+  const [label, setLabel] = useState("");
+
+  useEffect(() => {
+    const tick = () => {
+      const diff = new Date(expiresAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setLabel("expired");
+        return;
+      }
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setLabel(`expires in ${m}m ${s}s`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [expiresAt]);
+
+  const expired = label === "expired";
+  return (
+    <span
+      style={{
+        fontSize: 11,
+        padding: "2px 8px",
+        borderRadius: 99,
+        background: expired ? "#7f1d1d" : "#1e3a5f",
+        color: expired ? "#fca5a5" : "#93c5fd",
+        fontWeight: 500,
+      }}
+    >
+      ⏱ {label}
+    </span>
+  );
+}
+
+interface DiffPanelProps {
+  diffRef: string;
+}
+
+function DiffPanel({ diffRef }: DiffPanelProps) {
+  const [oldContent, setOldContent] = useState<string | null>(null);
+  const [newContent, setNewContent] = useState<string | null>(null);
+  const [filename, setFilename] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = async () => {
+    if (open) { setOpen(false); return; }
+    if (oldContent !== null) { setOpen(true); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getDiff(diffRef);
+      setOldContent(data.old_content);
+      setNewContent(data.new_content);
+      setFilename(data.filename);
+      setOpen(true);
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <button
+        onClick={() => void toggle()}
+        disabled={loading}
+        style={{
+          background: "#0f172a",
+          color: "#38bdf8",
+          border: "1px solid #334155",
+          fontSize: 12,
+          padding: "4px 12px",
+        }}
+      >
+        {loading ? "Loading diff…" : open ? "▲ Hide diff" : "▼ Show diff"}
+      </button>
+      {error && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{error}</p>}
+      {open && oldContent !== null && newContent !== null && (
+        <div
+          style={{
+            marginTop: 8,
+            borderRadius: 6,
+            overflow: "hidden",
+            border: "1px solid #334155",
+            fontSize: 12,
+          }}
+        >
+          {filename && (
+            <div
+              style={{
+                background: "#0f172a",
+                padding: "6px 12px",
+                color: "#94a3b8",
+                fontSize: 11,
+                borderBottom: "1px solid #334155",
+              }}
+            >
+              📄 {filename}
+            </div>
+          )}
+          <ReactDiffViewer
+            oldValue={oldContent}
+            newValue={newContent}
+            splitView={false}
+            useDarkTheme
+            hideLineNumbers={false}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ApprovalQueue() {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [initialLoad, setInitialLoad] = useState(true);
   const inFlight = useRef(false);
 
   const load = async () => {
@@ -61,12 +182,13 @@ export default function ApprovalQueue() {
       setError((e as Error).message);
     } finally {
       inFlight.current = false;
+      setInitialLoad(false);
     }
   };
 
   useEffect(() => {
     void load();
-    const id = setInterval(() => { void load(); }, 3000);
+    const id = setInterval(() => { void load(); }, 5000);
     return () => clearInterval(id);
   }, []);
 
@@ -84,13 +206,19 @@ export default function ApprovalQueue() {
 
   return (
     <div>
-      <h2>Approval Queue</h2>
+      <h2 style={{ marginBottom: 16, color: "#f1f5f9" }}>Approval Queue</h2>
 
       {error && (
         <p style={{ color: "#ef4444", marginBottom: 16 }}>{error}</p>
       )}
 
-      {pending.length === 0 && (
+      {initialLoad && (
+        <div>
+          {[1, 2].map((i) => <ApprovalSkeleton key={i} />)}
+        </div>
+      )}
+
+      {!initialLoad && pending.length === 0 && (
         <p style={{ color: "#94a3b8" }}>No pending approvals.</p>
       )}
 
@@ -106,17 +234,21 @@ export default function ApprovalQueue() {
               marginBottom: 12,
             }}
           >
+            {/* Header row */}
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 marginBottom: 12,
+                flexWrap: "wrap",
+                gap: 8,
               }}
             >
-              <span>
-                Run: <code style={{ fontSize: 11 }}>{a.run_id.slice(0, 8)}&hellip;</code>
-                &nbsp;&nbsp;
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>
+                  Run: <code style={{ fontSize: 11 }}>{a.run_id.slice(0, 8)}&hellip;</code>
+                </span>
                 <span
                   style={{
                     background: "#f97316",
@@ -124,11 +256,13 @@ export default function ApprovalQueue() {
                     fontSize: 11,
                     padding: "2px 8px",
                     borderRadius: 99,
+                    fontWeight: 600,
                   }}
                 >
                   PENDING
                 </span>
-              </span>
+                <ExpiryBadge expiresAt={a.expires_at} />
+              </div>
               <span style={{ display: "flex", gap: 8 }}>
                 <button
                   onClick={() => void decide(a.approval_id, "approved")}
@@ -144,17 +278,24 @@ export default function ApprovalQueue() {
                 </button>
               </span>
             </div>
-            <ScoreBar label="Risk" value={a.scores.risk} />
-            <ScoreBar label="Breaking Change" value={a.scores.breaking_change} />
-            <ScoreBar label="Confidence" value={a.scores.confidence} />
-            <ScoreBar label="Test Pass Rate" value={a.scores.test_pass_rate} />
+
+            {/* Score bars — fixed field names */}
+            <ScoreBar label="Risk" value={a.risk_score} />
+            <ScoreBar label="Breaking Change" value={a.breaking_change_score} />
+            <ScoreBar label="Confidence" value={a.confidence_score} />
+            <ScoreBar label="Test Pass Rate" value={a.test_pass_rate} />
+
+            {/* Diff viewer */}
+            {a.diff_ref && <DiffPanel diffRef={a.diff_ref} />}
           </li>
         ))}
       </ul>
 
       {resolved.length > 0 && (
         <>
-          <h3>Resolved ({resolved.length})</h3>
+          <h3 style={{ color: "#94a3b8", margin: "24px 0 8px", fontSize: 14, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Resolved ({resolved.length})
+          </h3>
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {resolved.map((a) => (
               <li
@@ -163,21 +304,25 @@ export default function ApprovalQueue() {
                   display: "flex",
                   gap: 12,
                   alignItems: "center",
-                  padding: "8px 12px",
+                  padding: "10px 14px",
                   marginBottom: 6,
                   background: "#1e293b",
                   borderRadius: 8,
                   border: "1px solid #334155",
                   fontSize: 13,
+                  flexWrap: "wrap",
                 }}
               >
-                <code style={{ fontSize: 11 }}>{a.run_id.slice(0, 8)}&hellip;</code>
-                &nbsp;&nbsp;
-                <span style={{ color: a.decision === "approved" ? "#4ade80" : "#f87171" }}>
+                <code style={{ fontSize: 11, color: "#64748b" }}>{a.run_id.slice(0, 8)}&hellip;</code>
+                <span style={{ color: a.decision === "approved" ? "#4ade80" : "#f87171", fontWeight: 600 }}>
                   {a.decision}
                 </span>
-                &nbsp;&nbsp;
-                <span style={{ color: "#94a3b8" }}>by {a.decided_by}</span>
+                <span style={{ color: "#64748b" }}>by {a.decided_by}</span>
+                <span style={{ color: "#475569", fontSize: 11, marginLeft: "auto" }}>
+                  risk {Math.round(a.risk_score * 100)}% &middot;
+                  confidence {Math.round(a.confidence_score * 100)}% &middot;
+                  tests {Math.round(a.test_pass_rate * 100)}%
+                </span>
               </li>
             ))}
           </ul>
