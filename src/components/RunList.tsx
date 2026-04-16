@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { listRuns, createRun, cancelRun, type Run } from "../api";
 
 const STATE_COLORS: Record<string, string> = {
@@ -40,19 +41,29 @@ export default function RunList() {
   const [goal, setGoal] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(false);
 
-  const load = () =>
-    listRuns()
-      .then(setRuns)
-      .catch((e: Error) => setError(e.message));
+  const load = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    try {
+      const data = await listRuns();
+      setRuns(data);
+      setError(null);
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      inFlight.current = false;
+    }
+  };
 
   useEffect(() => {
     void load();
-    const id = setInterval(load, 3000);
+    const id = setInterval(() => { void load(); }, 3000);
     return () => clearInterval(id);
   }, []);
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!repoId.trim() || !goal.trim()) return;
     setLoading(true);
@@ -80,7 +91,7 @@ export default function RunList() {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 16, color: "#f1f5f9" }}>Runs</h2>
+      <h2>Runs</h2>
 
       {/* New run form */}
       <form
@@ -109,43 +120,40 @@ export default function RunList() {
           style={{ flex: 1 }}
           required
         />
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ background: "#38bdf8", color: "#0f172a", flexShrink: 0 }}
-        >
+        <button type="submit" disabled={loading}>
           {loading ? "Creating…" : "New Run"}
         </button>
       </form>
 
       {error && (
-        <p style={{ color: "#ef4444", marginBottom: 12, fontSize: 14 }}>{error}</p>
+        <p style={{ color: "#ef4444", marginBottom: 16 }}>{error}</p>
       )}
 
       {/* Runs table */}
       {runs.length === 0 ? (
-        <p style={{ color: "#64748b" }}>No runs yet. Create one above.</p>
+        <p style={{ color: "#94a3b8" }}>No runs yet. Create one above.</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {runs.map((run) => (
-            <div
+            <li
               key={run.run_id}
               style={{
-                background: "#1e293b",
-                border: "1px solid #334155",
-                borderRadius: 8,
-                padding: "12px 16px",
                 display: "flex",
                 alignItems: "center",
-                gap: 16,
+                gap: 12,
+                padding: "12px 16px",
+                marginBottom: 8,
+                background: "#1e293b",
+                borderRadius: 8,
+                border: "1px solid #334155",
               }}
             >
+              <span style={{ flex: 1 }}>{run.goal}</span>
+              &nbsp;&nbsp;
+              <code style={{ fontSize: 11, color: "#94a3b8" }}>{run.run_id.slice(0, 8)}</code>
+              &nbsp;&nbsp;
+              <span style={{ fontSize: 12, color: "#64748b" }}>{run.trigger}</span>
               <StatusBadge state={run.state} />
-              <span style={{ flex: 1, color: "#e2e8f0", fontSize: 14 }}>{run.goal}</span>
-              <span style={{ color: "#64748b", fontSize: 12, fontFamily: "monospace" }}>
-                {run.run_id.slice(0, 8)}
-              </span>
-              <span style={{ color: "#64748b", fontSize: 12 }}>{run.trigger}</span>
               {!["applied", "failed", "rolled_back", "rejected"].includes(run.state) && (
                 <button
                   onClick={() => void cancel(run.run_id)}
@@ -159,9 +167,9 @@ export default function RunList() {
                   Cancel
                 </button>
               )}
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );
