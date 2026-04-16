@@ -1,67 +1,65 @@
-import { useState } from "react";
+import { useAppStore } from "./store";
 import RunList from "./components/RunList";
 import RepoForm from "./components/RepoForm";
 import ApprovalQueue from "./components/ApprovalQueue";
+import { Toast } from "./components/ui/Toast";
+import { WorkerStatusBar } from "./components/ui/WorkerStatusBar";
+import { Badge } from "./components/ui/Badge";
 
-type Tab = "runs" | "repos" | "approvals";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "runs", label: "Runs" },
-  { id: "repos", label: "Repos" },
+const TABS = [
+  { id: "runs",      label: "Runs" },
+  { id: "repos",     label: "Repos" },
   { id: "approvals", label: "Approvals" },
-];
+] as const;
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("runs");
+  const tab = useAppStore((s) => s.tab);
+  const setTab = useAppStore((s) => s.setTab);
+  const pendingCount = useAppStore((s) => s.pendingApprovalCount);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <header
-        style={{
-          background: "#1e293b",
-          padding: "12px 24px",
-          display: "flex",
-          alignItems: "center",
-          gap: "24px",
-          borderBottom: "1px solid #334155",
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{ fontWeight: 700, fontSize: 18, color: "#38bdf8", letterSpacing: -0.5 }}
-        >
+    <div className="flex flex-col h-screen">
+      {/* ── Header ── */}
+      <header className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center gap-6 flex-shrink-0">
+        <span className="font-bold text-lg text-sky-400 tracking-tight">
           🔨 RepoForge
         </span>
 
-        <nav style={{ display: "flex", gap: 4 }}>
+        <nav className="flex gap-1">
           {TABS.map(({ id, label }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
-              style={{
-                background: tab === id ? "#0f172a" : "transparent",
-                color: tab === id ? "#38bdf8" : "#94a3b8",
-                border: tab === id ? "1px solid #334155" : "1px solid transparent",
-                padding: "6px 14px",
-                borderRadius: 6,
-                fontSize: 14,
-              }}
+              className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                tab === id
+                  ? "bg-slate-950 text-sky-400 border border-slate-700"
+                  : "bg-transparent text-slate-400 hover:text-slate-200"
+              }`}
             >
               {label}
+              {id === "approvals" && pendingCount > 0 && (
+                <Badge variant="orange" className="ml-1.5">
+                  {pendingCount}
+                </Badge>
+              )}
             </button>
           ))}
         </nav>
 
-        <span style={{ marginLeft: "auto", fontSize: 12, color: "#64748b" }}>
-          v0.5.0
-        </span>
+        <div className="ml-auto flex items-center gap-3">
+          <WorkerStatusBar />
+          <span className="text-xs text-slate-600">v0.6.0</span>
+        </div>
       </header>
 
-      <main style={{ flex: 1, overflow: "auto", padding: 24 }}>
-        {tab === "runs" && <RunList />}
-        {tab === "repos" && <RepoForm />}
+      {/* ── Main content ── */}
+      <main className="flex-1 overflow-auto p-6">
+        {tab === "runs"      && <RunList />}
+        {tab === "repos"     && <RepoForm />}
         {tab === "approvals" && <ApprovalQueue />}
       </main>
+
+      <Toast />
     </div>
   );
 }

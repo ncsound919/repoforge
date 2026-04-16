@@ -1,62 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import ReactDiffViewer from "react-diff-viewer-continued";
-import { listApprovals, getDiff, decideApproval, type Approval } from "../api";
+import { useApprovals, useDecideApproval } from "../hooks/useRepoForgeQueries";
+import { getDiff } from "../api";
+import { Card, CardHeader, CardContent } from "./ui/Card";
+import { Badge } from "./ui/Badge";
+import { Button } from "./ui/Button";
+import { ScoreProgress } from "./ui/Progress";
 import { ApprovalSkeleton } from "./Skeleton";
+import type { Approval } from "../api";
 
-function riskColor(score: number) {
-  if (score >= 0.7) return "#ef4444";
-  if (score >= 0.3) return "#f97316";
-  return "#22c55e";
-}
-
-function ScoreBar({ label, value }: { label: string; value: number }) {
-  const pct = Math.round(value * 100);
-  return (
-    <div style={{ marginBottom: 6 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: 12,
-          color: "#94a3b8",
-          marginBottom: 2,
-        }}
-      >
-        <span>{label}</span>
-        <span>{pct}%</span>
-      </div>
-      <div
-        style={{
-          height: 4,
-          borderRadius: 99,
-          background: "#334155",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${pct}%`,
-            background: riskColor(value),
-            borderRadius: 99,
-            transition: "width 0.3s",
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
+// ── Expiry countdown ─────────────────────────────────────────────────────────
 function ExpiryBadge({ expiresAt }: { expiresAt: string }) {
   const [label, setLabel] = useState("");
-
   useEffect(() => {
     const tick = () => {
       const diff = new Date(expiresAt).getTime() - Date.now();
-      if (diff <= 0) {
-        setLabel("expired");
-        return;
-      }
+      if (diff <= 0) { setLabel("expired"); return; }
       const m = Math.floor(diff / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setLabel(`expires in ${m}m ${s}s`);
@@ -66,40 +25,27 @@ function ExpiryBadge({ expiresAt }: { expiresAt: string }) {
     return () => clearInterval(id);
   }, [expiresAt]);
 
-  const expired = label === "expired";
   return (
-    <span
-      style={{
-        fontSize: 11,
-        padding: "2px 8px",
-        borderRadius: 99,
-        background: expired ? "#7f1d1d" : "#1e3a5f",
-        color: expired ? "#fca5a5" : "#93c5fd",
-        fontWeight: 500,
-      }}
-    >
+    <Badge variant={label === "expired" ? "danger" : "primary"}>
       ⏱ {label}
-    </span>
+    </Badge>
   );
 }
 
-interface DiffPanelProps {
-  diffRef: string;
-}
-
-function DiffPanel({ diffRef }: DiffPanelProps) {
+// ── Lazy diff panel ───────────────────────────────────────────────────────────
+function DiffPanel({ diffRef }: { diffRef: string }) {
   const [oldContent, setOldContent] = useState<string | null>(null);
   const [newContent, setNewContent] = useState<string | null>(null);
   const [filename, setFilename] = useState("");
-  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [diffError, setDiffError] = useState<string | null>(null);
 
   const toggle = async () => {
     if (open) { setOpen(false); return; }
     if (oldContent !== null) { setOpen(true); return; }
     setLoading(true);
-    setError(null);
+    setDiffError(null);
     try {
       const data = await getDiff(diffRef);
       setOldContent(data.old_content);
@@ -107,48 +53,22 @@ function DiffPanel({ diffRef }: DiffPanelProps) {
       setFilename(data.filename);
       setOpen(true);
     } catch (e: unknown) {
-      setError((e as Error).message);
+      setDiffError((e as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ marginTop: 12 }}>
-      <button
-        onClick={() => void toggle()}
-        disabled={loading}
-        style={{
-          background: "#0f172a",
-          color: "#38bdf8",
-          border: "1px solid #334155",
-          fontSize: 12,
-          padding: "4px 12px",
-        }}
-      >
+    <div className="mt-3">
+      <Button variant="ghost" size="sm" onClick={() => void toggle()} disabled={loading}>
         {loading ? "Loading diff…" : open ? "▲ Hide diff" : "▼ Show diff"}
-      </button>
-      {error && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{error}</p>}
+      </Button>
+      {diffError && <p className="text-red-400 text-xs mt-1">{diffError}</p>}
       {open && oldContent !== null && newContent !== null && (
-        <div
-          style={{
-            marginTop: 8,
-            borderRadius: 6,
-            overflow: "hidden",
-            border: "1px solid #334155",
-            fontSize: 12,
-          }}
-        >
+        <div className="mt-2 rounded-md overflow-hidden border border-slate-700 text-xs">
           {filename && (
-            <div
-              style={{
-                background: "#0f172a",
-                padding: "6px 12px",
-                color: "#94a3b8",
-                fontSize: 11,
-                borderBottom: "1px solid #334155",
-              }}
-            >
+            <div className="bg-slate-950 px-3 py-1.5 text-slate-400 text-[11px] border-b border-slate-700">
               📄 {filename}
             </div>
           )}
@@ -165,164 +85,90 @@ function DiffPanel({ diffRef }: DiffPanelProps) {
   );
 }
 
+// ── Pending approval card ─────────────────────────────────────────────────────
+function PendingCard({ a }: { a: Approval }) {
+  const decide = useDecideApproval();
+  return (
+    <Card className="mb-3">
+      <CardHeader>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm">
+            Run: <code className="text-[11px] text-slate-400">{a.run_id.slice(0, 8)}&hellip;</code>
+          </span>
+          <Badge variant="orange">PENDING</Badge>
+          <ExpiryBadge expiresAt={a.expires_at} />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="success"
+            size="sm"
+            disabled={decide.isPending}
+            onClick={() => decide.mutate({ id: a.approval_id, decision: "approved" })}
+          >
+            ✓ Approve
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            disabled={decide.isPending}
+            onClick={() => decide.mutate({ id: a.approval_id, decision: "rejected" })}
+          >
+            ✗ Reject
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <ScoreProgress label="Risk"           value={a.risk_score} />
+        <ScoreProgress label="Breaking Change" value={a.breaking_change_score} />
+        <ScoreProgress label="Confidence"      value={a.confidence_score} />
+        <ScoreProgress label="Test Pass Rate"  value={a.test_pass_rate} />
+        {a.diff_ref && <DiffPanel diffRef={a.diff_ref} />}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function ApprovalQueue() {
-  const [approvals, setApprovals] = useState<Approval[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [initialLoad, setInitialLoad] = useState(true);
-  const inFlight = useRef(false);
+  const { data: approvals = [], isLoading, isError, error } = useApprovals();
 
-  const load = async () => {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    try {
-      const data = await listApprovals();
-      setApprovals(data);
-      setError(null);
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      inFlight.current = false;
-      setInitialLoad(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-    const id = setInterval(() => { void load(); }, 5000);
-    return () => clearInterval(id);
-  }, []);
-
-  const decide = async (id: string, decision: "approved" | "rejected") => {
-    try {
-      await decideApproval(id, decision);
-      await load();
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    }
-  };
-
-  const pending = approvals.filter((a) => a.decision === "pending");
+  const pending  = approvals.filter((a) => a.decision === "pending");
   const resolved = approvals.filter((a) => a.decision !== "pending");
 
   return (
     <div>
-      <h2 style={{ marginBottom: 16, color: "#f1f5f9" }}>Approval Queue</h2>
+      <h2 className="text-xl font-semibold text-slate-100 mb-4">Approval Queue</h2>
 
-      {error && (
-        <p style={{ color: "#ef4444", marginBottom: 16 }}>{error}</p>
+      {isError && <p className="text-red-400 text-sm mb-4">{(error as Error).message}</p>}
+
+      {isLoading && [1, 2].map((i) => <ApprovalSkeleton key={i} />)}
+
+      {!isLoading && pending.length === 0 && (
+        <p className="text-slate-500">No pending approvals.</p>
       )}
 
-      {initialLoad && (
-        <div>
-          {[1, 2].map((i) => <ApprovalSkeleton key={i} />)}
-        </div>
-      )}
-
-      {!initialLoad && pending.length === 0 && (
-        <p style={{ color: "#94a3b8" }}>No pending approvals.</p>
-      )}
-
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {pending.map((a) => (
-          <li
-            key={a.approval_id}
-            style={{
-              background: "#1e293b",
-              border: "1px solid #334155",
-              borderRadius: 8,
-              padding: 16,
-              marginBottom: 12,
-            }}
-          >
-            {/* Header row */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 12,
-                flexWrap: "wrap",
-                gap: 8,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span>
-                  Run: <code style={{ fontSize: 11 }}>{a.run_id.slice(0, 8)}&hellip;</code>
-                </span>
-                <span
-                  style={{
-                    background: "#f97316",
-                    color: "#fff",
-                    fontSize: 11,
-                    padding: "2px 8px",
-                    borderRadius: 99,
-                    fontWeight: 600,
-                  }}
-                >
-                  PENDING
-                </span>
-                <ExpiryBadge expiresAt={a.expires_at} />
-              </div>
-              <span style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => void decide(a.approval_id, "approved")}
-                  style={{ background: "#166534", color: "#4ade80" }}
-                >
-                  &#10003; Approve
-                </button>
-                <button
-                  onClick={() => void decide(a.approval_id, "rejected")}
-                  style={{ background: "#7f1d1d", color: "#fca5a5" }}
-                >
-                  &#10007; Reject
-                </button>
-              </span>
-            </div>
-
-            {/* Score bars — fixed field names */}
-            <ScoreBar label="Risk" value={a.risk_score} />
-            <ScoreBar label="Breaking Change" value={a.breaking_change_score} />
-            <ScoreBar label="Confidence" value={a.confidence_score} />
-            <ScoreBar label="Test Pass Rate" value={a.test_pass_rate} />
-
-            {/* Diff viewer */}
-            {a.diff_ref && <DiffPanel diffRef={a.diff_ref} />}
-          </li>
-        ))}
-      </ul>
+      {pending.map((a) => <PendingCard key={a.approval_id} a={a} />)}
 
       {resolved.length > 0 && (
         <>
-          <h3 style={{ color: "#94a3b8", margin: "24px 0 8px", fontSize: 14, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-6 mb-2">
             Resolved ({resolved.length})
           </h3>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          <ul className="space-y-1.5 list-none p-0 m-0">
             {resolved.map((a) => (
-              <li
-                key={a.approval_id}
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "center",
-                  padding: "10px 14px",
-                  marginBottom: 6,
-                  background: "#1e293b",
-                  borderRadius: 8,
-                  border: "1px solid #334155",
-                  fontSize: 13,
-                  flexWrap: "wrap",
-                }}
-              >
-                <code style={{ fontSize: 11, color: "#64748b" }}>{a.run_id.slice(0, 8)}&hellip;</code>
-                <span style={{ color: a.decision === "approved" ? "#4ade80" : "#f87171", fontWeight: 600 }}>
-                  {a.decision}
-                </span>
-                <span style={{ color: "#64748b" }}>by {a.decided_by}</span>
-                <span style={{ color: "#475569", fontSize: 11, marginLeft: "auto" }}>
-                  risk {Math.round(a.risk_score * 100)}% &middot;
-                  confidence {Math.round(a.confidence_score * 100)}% &middot;
-                  tests {Math.round(a.test_pass_rate * 100)}%
-                </span>
+              <li key={a.approval_id}>
+                <Card className="flex flex-wrap items-center gap-3 py-2.5 px-3.5 text-sm">
+                  <code className="text-[11px] text-slate-500">{a.run_id.slice(0, 8)}&hellip;</code>
+                  <span className={a.decision === "approved" ? "text-green-400 font-semibold" : "text-red-400 font-semibold"}>
+                    {a.decision}
+                  </span>
+                  <span className="text-slate-500">by {a.decided_by}</span>
+                  <span className="text-slate-600 text-[11px] ml-auto">
+                    risk {Math.round(a.risk_score * 100)}% &middot;
+                    confidence {Math.round(a.confidence_score * 100)}% &middot;
+                    tests {Math.round(a.test_pass_rate * 100)}%
+                  </span>
+                </Card>
               </li>
             ))}
           </ul>

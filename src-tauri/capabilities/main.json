@@ -1,0 +1,14 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema/acl/capability.json",
+  "identifier": "main-capability",
+  "description": "RepoForge main window capabilities",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-spawn",
+    "shell:allow-open",
+    "fs:allow-read-recursive",
+    "fs:allow-write-recursive",
+    "http:default"
+  ]
+}

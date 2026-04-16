@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "productName": "RepoForge",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "identifier": "com.overlayeco.repoforge",
   "build": {
     "frontendDist": "../dist",
@@ -27,6 +27,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": [
+      "binaries/repoforge-worker"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

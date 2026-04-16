@@ -1,69 +1,66 @@
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-  color: #e2e8f0;
-  background-color: #0f172a;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    @apply bg-slate-950 text-slate-200 min-h-screen;
+  }
+
+  #root {
+    @apply flex flex-col min-h-screen;
+  }
+
+  a {
+    @apply text-sky-400 no-underline;
+  }
+
+  input, textarea, select {
+    @apply bg-slate-800 border border-slate-700 rounded-md text-slate-200 text-sm px-3 py-2 outline-none w-full
+           focus:border-sky-400 transition-colors;
+  }
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  min-height: 100vh;
-  background-color: #0f172a;
-}
-
-#root {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-a {
-  color: #38bdf8;
-  text-decoration: none;
-}
-
-button {
-  cursor: pointer;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: opacity 0.15s;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-input, textarea, select {
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  color: #e2e8f0;
-  font-size: 14px;
-  padding: 8px 12px;
-  outline: none;
-  width: 100%;
-}
-
-input:focus, textarea:focus, select:focus {
-  border-color: #38bdf8;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+@layer components {
+  .btn {
+    @apply cursor-pointer border-0 rounded-md px-4 py-2 text-sm font-medium transition-opacity
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-sky-600 text-white hover:bg-sky-500;
+  }
+  .btn-success {
+    @apply btn bg-green-900 text-green-400 hover:bg-green-800;
+  }
+  .btn-danger {
+    @apply btn bg-red-950 text-red-400 hover:bg-red-900;
+  }
+  .btn-ghost {
+    @apply btn bg-slate-900 text-sky-400 border border-slate-700 hover:bg-slate-800;
+  }
+  .card {
+    @apply bg-slate-800 border border-slate-700 rounded-lg;
+  }
+  .badge {
+    @apply inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .skeleton {
+    @apply rounded-md animate-shimmer;
+    background: linear-gradient(90deg, #1e293b 25%, #273549 50%, #1e293b 75%);
+    background-size: 200% 100%;
+  }
 }

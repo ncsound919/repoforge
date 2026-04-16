@@ -1,6 +1,6 @@
 [package]
 name = "repoforge"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 
 [build-dependencies]
@@ -17,7 +17,7 @@ tokio = { version = "1", features = ["full"] }
 notify = "6"          # file watcher
 git2 = "0.19"         # git operations
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [lib]
 name = "repoforge_lib"

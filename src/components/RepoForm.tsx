@@ -1,208 +1,113 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { FormEvent } from "react";
-import { registerRepo, listRepos, type Repo } from "../api";
+import { useRepos, useRegisterRepo } from "../hooks/useRepoForgeQueries";
+import { Card } from "./ui/Card";
+import { Badge } from "./ui/Badge";
+import { Button } from "./ui/Button";
 import { Skeleton } from "./Skeleton";
 
 function IngestBadge({ ingestedAt }: { ingestedAt: string | null }) {
-  if (!ingestedAt) {
-    return (
-      <span
-        style={{
-          fontSize: 11,
-          padding: "2px 8px",
-          borderRadius: 99,
-          background: "#1c1917",
-          color: "#a8a29e",
-          border: "1px solid #44403c",
-        }}
-      >
-        not ingested
-      </span>
-    );
-  }
+  if (!ingestedAt) return <Badge variant="muted">not ingested</Badge>;
   return (
-    <span
-      style={{
-        fontSize: 11,
-        padding: "2px 8px",
-        borderRadius: 99,
-        background: "#14532d",
-        color: "#4ade80",
-        border: "1px solid #166534",
-      }}
-    >
+    <Badge variant="success">
       ✓ ingested {new Date(ingestedAt).toLocaleDateString()}
-    </span>
+    </Badge>
   );
 }
 
 export default function RepoForm() {
   const [name, setName] = useState("");
   const [path, setPath] = useState("");
-  const [repos, setRepos] = useState<Repo[]>([]);
-  const [registered, setRegistered] = useState<Repo | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [reposLoading, setReposLoading] = useState(true);
 
-  const loadRepos = async () => {
-    setReposLoading(true);
-    try {
-      const data = await listRepos();
-      setRepos(data);
-    } catch {
-      // non-fatal
-    } finally {
-      setReposLoading(false);
-    }
-  };
+  const { data: repos = [], isLoading: reposLoading } = useRepos();
+  const register = useRegisterRepo();
 
-  useEffect(() => { void loadRepos(); }, []);
-
-  const submit = async (e: FormEvent) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const repo = await registerRepo(name.trim(), path.trim());
-      setRegistered(repo);
-      setName("");
-      setPath("");
-      await loadRepos();
-    } catch (err: unknown) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    if (!name.trim() || !path.trim()) return;
+    register.mutate({ name: name.trim(), path: path.trim() });
+    setName("");
+    setPath("");
   };
 
   return (
-    <div style={{ display: "flex", gap: 32, flexWrap: "wrap", alignItems: "flex-start" }}>
+    <div className="flex gap-8 flex-wrap items-start">
 
-      {/* Register form */}
-      <div style={{ flex: "0 0 360px" }}>
-        <h2 style={{ marginBottom: 16, color: "#f1f5f9" }}>Register Repository</h2>
-        <form
-          onSubmit={(e) => void submit(e)}
-          style={{
-            background: "#1e293b",
-            border: "1px solid #334155",
-            borderRadius: 8,
-            padding: 20,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
-          <label style={{ color: "#94a3b8", fontSize: 13 }}>
-            Name
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="my-repo"
-              required
-              style={{ marginTop: 4 }}
-            />
-          </label>
-
-          <label style={{ color: "#94a3b8", fontSize: 13 }}>
-            Local path
-            <input
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
-              placeholder="/home/user/projects/my-repo"
-              required
-              style={{ marginTop: 4 }}
-            />
-          </label>
-
-          {error && <p style={{ color: "#ef4444", margin: 0 }}>{error}</p>}
-
-          <button type="submit" disabled={loading}>
-            {loading ? "Registering…" : "Register"}
-          </button>
-        </form>
-
-        {registered && (
-          <div
-            style={{
-              marginTop: 16,
-              padding: 12,
-              background: "#14532d",
-              border: "1px solid #166534",
-              borderRadius: 8,
-              color: "#4ade80",
-            }}
-          >
-            <p style={{ margin: 0 }}>
-              &#10003; Registered <strong>{registered.name}</strong>
-            </p>
-            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#86efac" }}>
-              ID: {registered.repo_id}
-            </p>
-          </div>
-        )}
+      {/* ── Register form ── */}
+      <div className="flex-none w-80">
+        <h2 className="text-xl font-semibold text-slate-100 mb-4">Register Repository</h2>
+        <Card>
+          <form onSubmit={submit} className="flex flex-col gap-3">
+            <label className="text-slate-400 text-sm">
+              Name
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="my-repo"
+                required
+                className="mt-1"
+              />
+            </label>
+            <label className="text-slate-400 text-sm">
+              Local path
+              <input
+                value={path}
+                onChange={(e) => setPath(e.target.value)}
+                placeholder="/home/user/projects/my-repo"
+                required
+                className="mt-1"
+              />
+            </label>
+            <Button type="submit" disabled={register.isPending}>
+              {register.isPending ? "Registering…" : "Register"}
+            </Button>
+          </form>
+        </Card>
       </div>
 
-      {/* Repo list */}
-      <div style={{ flex: 1, minWidth: 280 }}>
-        <h2 style={{ marginBottom: 16, color: "#f1f5f9" }}>Registered Repos</h2>
+      {/* ── Repo list ── */}
+      <div className="flex-1 min-w-64">
+        <h2 className="text-xl font-semibold text-slate-100 mb-4">Registered Repos</h2>
 
         {reposLoading && (
-          <div>
+          <div className="space-y-2">
             {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                style={{
-                  padding: 12,
-                  marginBottom: 8,
-                  background: "#1e293b",
-                  borderRadius: 8,
-                  border: "1px solid #334155",
-                }}
-              >
-                <Skeleton height={14} width="50%" mb={6} />
-                <Skeleton height={11} width="30%" mb={0} />
-              </div>
+              <Card key={i}>
+                <Skeleton className="h-3.5 w-1/2 mb-2" />
+                <Skeleton className="h-3 w-1/3" />
+              </Card>
             ))}
           </div>
         )}
 
         {!reposLoading && repos.length === 0 && (
-          <p style={{ color: "#64748b", fontSize: 14 }}>No repos registered yet.</p>
+          <p className="text-slate-500 text-sm">No repos registered yet.</p>
         )}
 
         {!reposLoading && repos.length > 0 && (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          <ul className="space-y-2 list-none p-0 m-0">
             {repos.map((r) => (
-              <li
-                key={r.repo_id}
-                style={{
-                  padding: "12px 16px",
-                  marginBottom: 8,
-                  background: "#1e293b",
-                  borderRadius: 8,
-                  border: "1px solid #334155",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 600, color: "#e2e8f0" }}>{r.name}</span>
-                  <IngestBadge ingestedAt={r.ingested_at} />
-                </div>
-                <div style={{ fontSize: 12, color: "#64748b", display: "flex", gap: 16, flexWrap: "wrap" }}>
-                  <span>
-                    <span style={{ color: "#475569" }}>ID </span>
-                    <code style={{ fontSize: 11 }}>{r.repo_id.slice(0, 8)}</code>
-                  </span>
-                  <span>
-                    <span style={{ color: "#475569" }}>path </span>{r.path}
-                  </span>
-                  {r.language.length > 0 && (
+              <li key={r.repo_id}>
+                <Card>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-semibold text-slate-100">{r.name}</span>
+                    <IngestBadge ingestedAt={r.ingested_at} />
+                  </div>
+                  <div className="flex flex-wrap gap-4 text-xs text-slate-500">
                     <span>
-                      <span style={{ color: "#475569" }}>lang </span>{r.language.join(", ")}
+                      <span className="text-slate-600">ID </span>
+                      <code className="text-[11px]">{r.repo_id.slice(0, 8)}</code>
                     </span>
-                  )}
-                </div>
+                    <span>
+                      <span className="text-slate-600">path </span>{r.path}
+                    </span>
+                    {r.language.length > 0 && (
+                      <span>
+                        <span className="text-slate-600">lang </span>{r.language.join(", ")}
+                      </span>
+                    )}
+                  </div>
+                </Card>
               </li>
             ))}
           </ul>
