@@ -47,8 +47,8 @@ function formatDate(iso: string | null) {
   });
 }
 
-function formatCost(val: number) {
-  if (!val) return null;
+function formatCost(val: number | null | undefined) {
+  if (val == null || Number.isNaN(val)) return null;
   return `$${val.toFixed(4)}`;
 }
 
