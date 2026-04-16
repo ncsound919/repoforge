@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
 import { registerRepo, type Repo } from "../api";
 
 export default function RepoForm() {
@@ -8,7 +9,7 @@ export default function RepoForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -63,13 +64,9 @@ export default function RepoForm() {
           />
         </label>
 
-        {error && <p style={{ color: "#ef4444", fontSize: 13 }}>{error}</p>}
+        {error && <p style={{ color: "#ef4444", margin: 0 }}>{error}</p>}
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ background: "#38bdf8", color: "#0f172a", alignSelf: "flex-start" }}
-        >
+        <button type="submit" disabled={loading}>
           {loading ? "Registering…" : "Register"}
         </button>
       </form>
@@ -78,17 +75,17 @@ export default function RepoForm() {
         <div
           style={{
             marginTop: 16,
-            background: "#052e16",
+            padding: 12,
+            background: "#14532d",
             border: "1px solid #166534",
             borderRadius: 8,
-            padding: "12px 16px",
-            maxWidth: 480,
+            color: "#4ade80",
           }}
         >
-          <p style={{ color: "#4ade80", fontSize: 13, marginBottom: 4 }}>
-            ✓ Registered <strong>{registered.name}</strong>
+          <p style={{ margin: 0 }}>
+            &#10003; Registered <strong>{registered.name}</strong>
           </p>
-          <p style={{ color: "#64748b", fontSize: 12, fontFamily: "monospace" }}>
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#86efac" }}>
             ID: {registered.repo_id}
           </p>
         </div>
